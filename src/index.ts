@@ -6,7 +6,29 @@ import { JsonObject } from "@prisma/client/runtime/client";
 import Mustache from "mustache";
 import { sendEmail } from "./email";
 import { geminiResponse } from "./gemini";
+import * as fs from 'fs'; 
+import path from "path";
+import express from "express";
+import cors from "cors";
 dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3005;
+
+const corsOptions = {
+    credentials: true,
+    origin: process.env.FRONTEND_URL,
+};
+app.use(cors(corsOptions))
+
+app.get("/", (req, res) => {
+    console.log("pinged")
+  res.status(200).send("OK");
+});
+
+app.listen(PORT, () => {
+  console.log(`Ping server running on ${PORT}`);
+});
 
 const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
@@ -15,9 +37,29 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 const TOPIC_NAME = "zap-events";
+// const kafka = new Kafka({
+//     clientId: "outbox-processor",
+//     brokers: ["localhost:9092"],
+// });
 const kafka = new Kafka({
-    clientId: "outbox-processor",
-    brokers: ["localhost:9092"],
+  clientId: "outbox-processor",
+  brokers: ["kafka-378cf09f-arjit-chat-db.l.aivencloud.com:20666"],
+  ssl: {
+    key: fs.readFileSync(
+      path.join(__dirname, "../certs/service.key"),
+      "utf-8"
+    ),
+    cert: fs.readFileSync(
+      path.join(__dirname, "../certs/service.cert"),
+      "utf-8"
+    ),
+    ca: [
+      fs.readFileSync(
+        path.join(__dirname, "../certs/ca.pem"),
+        "utf-8"
+      ),
+    ],
+  },
 });
 const consumer = kafka.consumer({ groupId: "zap-group" });
 const producer = kafka.producer();
